@@ -19,7 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { CheckCircle, Clock, XCircle, AlertTriangle,  Repeat, Trash2, Loader2 } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle,  Trash2, Loader2, CreditCard } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -30,9 +30,8 @@ import {
 } from '@/components/ui/dialog';
 
 const Orders = () => {
-
   const { orders, fetchOrders, loading, retryPayment, cancelOrder } = useOrderStore();
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('active');
   const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -43,6 +42,33 @@ const Orders = () => {
     fetchOrders();
   }, [fetchOrders]);
 
+  // Add global style for Razorpay iframe when component mounts
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .razorpay-payment-button, .razorpay-checkout-frame {
+        z-index: 100000 !important; 
+      }
+      .razorpay-backdrop {
+        z-index: 99999 !important;
+      }
+    `;
+    style.id = 'razorpay-retry-style-fix';
+    
+    // Only add if not already present
+    if (!document.getElementById('razorpay-retry-style-fix')) {
+      document.head.appendChild(style);
+    }
+    
+    return () => {
+      // Cleanup on component unmount
+      const existingStyle = document.getElementById('razorpay-retry-style-fix');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
+
   const handleRetryPayment = async (orderId: string) => {
     setRetryingOrderId(orderId);
     try {
@@ -51,6 +77,9 @@ const Orders = () => {
         throw new Error('Failed to initiate payment retry');
       }
 
+      // Close the confirm dialog before proceeding
+      setConfirmDialogOpen(false);
+      
       // Load Razorpay script
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -92,9 +121,16 @@ const Orders = () => {
                 description: 'You can retry the payment later',
               });
             },
+            escape: false,
+            animation: true,
           },
           theme: {
             color: '#6366F1',
+          },
+          prefill: {
+            name: '',
+            email: '',
+            contact: '',
           },
         };
 
@@ -111,6 +147,8 @@ const Orders = () => {
       });
     } finally {
       setRetryingOrderId(null);
+      setSelectedOrder(null);
+      setAction(null);
     }
   };
 
@@ -133,6 +171,7 @@ const Orders = () => {
           toast.success('Order canceled', {
             description: 'The order has been canceled successfully',
           });
+          setConfirmDialogOpen(false);
         } else {
           throw new Error('Failed to cancel order');
         }
@@ -142,33 +181,36 @@ const Orders = () => {
         });
       } finally {
         setCancelingOrderId(null);
+        setSelectedOrder(null);
+        setAction(null);
       }
     }
-
-    setConfirmDialogOpen(false);
-    setSelectedOrder(null);
-    setAction(null);
   };
 
-  const filteredOrders = activeTab === 'all' 
-    ? orders 
-    : orders.filter(order => {
-        if (activeTab === 'pending') return order.status === 'pending';
-        if (activeTab === 'paid') return order.status === 'paid';
-        if (activeTab === 'failed') return order.status === 'failed';
-        return true;
-      });
+  // Filter orders based on active tab
+  const filteredOrders = activeTab === 'active' 
+    ? orders.filter(order => order.status === 'pending' || order.status === 'paid')
+    : orders.filter(order => order.status === 'canceled');
+
+  // Sort orders to show pending orders first in active tab
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    // If we're in the active tab, show pending orders first
+    if (activeTab === 'active') {
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+    }
+    // Otherwise sort by date (newest first)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
       <h1 className="text-2xl font-bold mb-6">My Orders</h1>
 
-      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
-          <TabsTrigger value="all">All Orders</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="paid">Paid</TabsTrigger>
-          <TabsTrigger value="failed">Failed</TabsTrigger>
+          <TabsTrigger value="active">Active Orders</TabsTrigger>
+          <TabsTrigger value="canceled">Canceled Orders</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab}>
@@ -176,19 +218,22 @@ const Orders = () => {
             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : filteredOrders.length === 0 ? (
+          ) : sortedOrders.length === 0 ? (
             <div className="text-center py-12">
               <h3 className="text-lg font-medium">No orders found</h3>
               <p className="text-muted-foreground mt-1">
-                {activeTab === 'all' 
-                  ? "You haven't placed any orders yet"
-                  : `You don't have any ${activeTab} orders`}
+                {activeTab === 'active' 
+                  ? "You don't have any active orders"
+                  : "You don't have any canceled orders"}
               </p>
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2">
-              {filteredOrders.map((order) => (
-                <Card key={order.id} className="overflow-hidden">
+              {sortedOrders.map((order) => (
+                <Card 
+                  key={order.id} 
+                  className={`overflow-hidden ${order.status === 'pending' ? 'border-primary/30 shadow-md' : ''}`}
+                >
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <div>
@@ -224,37 +269,8 @@ const Orders = () => {
                       </div>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-end gap-2 border-t pt-4">
-                    {order.status === 'failed' && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openConfirmDialog(order.id, 'cancel')}
-                          disabled={!!cancelingOrderId}
-                        >
-                          {cancelingOrderId === order.id ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4 mr-1" />
-                          )}
-                          Cancel Order
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => openConfirmDialog(order.id, 'retry')}
-                          disabled={!!retryingOrderId}
-                        >
-                          {retryingOrderId === order.id ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          ) : (
-                            <Repeat className="h-4 w-4 mr-1" />
-                          )}
-                          Retry Payment
-                        </Button>
-                      </>
-                    )}
-                    {order.status === 'pending' && (
+                  {order.status === 'pending' && (
+                    <CardFooter className="flex justify-end gap-2 border-t pt-4 bg-muted/30">
                       <Button
                         variant="outline"
                         size="sm"
@@ -268,8 +284,21 @@ const Orders = () => {
                         )}
                         Cancel Order
                       </Button>
-                    )}
-                  </CardFooter>
+                      <Button
+                        size="sm"
+                        onClick={() => openConfirmDialog(order.id, 'retry')}
+                        disabled={!!retryingOrderId}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        {retryingOrderId === order.id ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <CreditCard className="h-4 w-4 mr-1" />
+                        )}
+                        Complete Payment
+                      </Button>
+                    </CardFooter>
+                  )}
                 </Card>
               ))}
             </div>
@@ -277,11 +306,22 @@ const Orders = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+      <Dialog 
+        open={confirmDialogOpen} 
+        onOpenChange={(open) => {
+          // Don't allow closing during payment processing
+          if (retryingOrderId && !open) return;
+          setConfirmDialogOpen(open);
+          if (!open) {
+            setSelectedOrder(null);
+            setAction(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {action === 'retry' ? 'Retry Payment' : 'Cancel Order'}
+              {action === 'retry' ? 'Complete Payment' : 'Cancel Order'}
             </DialogTitle>
             <DialogDescription>
               {action === 'retry'
@@ -289,14 +329,29 @@ const Orders = () => {
                 : 'Are you sure you want to cancel this order? This action cannot be undone.'}
             </DialogDescription>
           </DialogHeader>
+          {action === 'retry' && (
+            <div className="flex items-center gap-2 rounded-md border p-3 bg-muted/50 my-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              <p className="text-sm">
+                Secure payment powered by Razorpay
+              </p>
+            </div>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setConfirmDialogOpen(false)}
+              disabled={!!retryingOrderId || !!cancelingOrderId}
             >
               Cancel
             </Button>
-            <Button onClick={confirmAction}>
+            <Button 
+              onClick={confirmAction}
+              disabled={!!retryingOrderId || !!cancelingOrderId}
+            >
+              {(retryingOrderId || cancelingOrderId) ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
               {action === 'retry' ? 'Proceed to Payment' : 'Confirm Cancel'}
             </Button>
           </DialogFooter>
@@ -314,29 +369,40 @@ const OrderStatusBadge = ({ status }: OrderStatusBadgeProps) => {
   const getStatusDetails = () => {
     switch (status) {
       case 'pending':
-        return { label: 'Pending', variant: 'outline', icon: Clock };
+        return { 
+          label: 'Payment Pending', 
+          variant: 'outline', 
+          icon: Clock,
+          className: 'border-orange-200 bg-orange-50 text-orange-700'
+        };
       case 'paid':
-        return { label: 'Paid', variant: 'success', icon: CheckCircle };
-      case 'failed':
-        return { label: 'Failed', variant: 'destructive', icon: XCircle };
+        return { 
+          label: 'Completed', 
+          variant: 'success', 
+          icon: CheckCircle,
+          className: 'border-green-200 bg-green-50 text-green-700'
+        };
       case 'canceled':
-        return { label: 'Canceled', variant: 'secondary', icon: AlertTriangle };
+        return { 
+          label: 'Canceled', 
+          variant: 'secondary', 
+          icon: AlertTriangle,
+          className: 'border-gray-200 bg-gray-50 text-gray-700'
+        };
       default:
-        return { label: status, variant: 'outline', icon: Clock };
+        return { 
+          label: status, 
+          variant: 'outline', 
+          icon: Clock,
+          className: 'border-gray-200 text-gray-800'
+        };
     }
   };
 
-  const { label, variant, icon: Icon } = getStatusDetails();
+  const { label, icon: Icon, className } = getStatusDetails();
   
-  const variantClasses = {
-    outline: 'border-gray-200 text-gray-800',
-    success: 'bg-green-100 text-green-800 border-green-200',
-    destructive: 'bg-red-100 text-red-800 border-red-200',
-    secondary: 'bg-gray-100 text-gray-800 border-gray-200',
-  };
-
   return (
-    <Badge variant="outline" className={`px-2 py-1 ${variantClasses[variant as keyof typeof variantClasses]} flex items-center gap-1`}>
+    <Badge variant="outline" className={`px-2 py-1 flex items-center gap-1 ${className}`}>
       <Icon className="h-3.5 w-3.5" />
       <span>{label}</span>
     </Badge>

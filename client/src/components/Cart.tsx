@@ -38,9 +38,9 @@ const Cart = ({ size = 'default' }: CartProps) => {
   const badgeSizeClass = size === 'lg' ? 'px-2 py-1 -top-3 -right-3 min-w-[1.5rem] text-xs' : 'px-2 py-1 -top-2 -right-2 min-w-[1.5rem] text-xs'
   
   const handleCheckout = () => {
-    setCheckoutOpen(true)
-    // Keep cart open to allow user to review items
-    // setOpen(false)
+    setCheckoutOpen(true);
+    // Close cart when proceeding to checkout
+    setOpen(false);
   }
   
   return (

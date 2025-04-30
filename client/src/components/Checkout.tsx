@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
 import { useOrderStore } from '@/store/orderStore';
@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, CreditCard } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -23,8 +23,48 @@ declare global {
 const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [, setOrderId] = useState<string | null>(null);
   const { items, clearCart, getTotalPrice } = useCartStore();
   const { createOrder, verifyPayment } = useOrderStore();
+
+  // Reset state when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      // Only reset if not in success state (to keep success message visible)
+      if (paymentStatus !== 'success') {
+        setPaymentStatus('idle');
+        setOrderId(null);
+      }
+    }
+  }, [open, paymentStatus]);
+
+  // Add global style for Razorpay iframe when component mounts
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .razorpay-payment-button, .razorpay-checkout-frame {
+        z-index: 100000 !important; 
+      }
+      .razorpay-backdrop {
+        z-index: 99999 !important;
+      }
+    `;
+    style.id = 'razorpay-style-fix';
+    
+    // Only add if not already present
+    if (!document.getElementById('razorpay-style-fix')) {
+      document.head.appendChild(style);
+    }
+    
+    return () => {
+      // Cleanup on component unmount
+      const existingStyle = document.getElementById('razorpay-style-fix');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
 
   const loadRazorpayScript = () => {
     return new Promise<boolean>((resolve) => {
@@ -45,6 +85,7 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
     }
 
     setIsProcessing(true);
+    setPaymentStatus('processing');
 
     try {
       // Prepare items for order creation
@@ -60,115 +101,213 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
         throw new Error('Failed to create order');
       }
 
+      setOrderId(orderData.orderId);
+
       // Check if Razorpay is loaded
       const isLoaded = await loadRazorpayScript();
       if (!isLoaded) {
         throw new Error('Razorpay SDK failed to load');
       }
 
-      // Configure Razorpay options
-      const options = {
-        key: orderData.key,
-        amount: Math.round(orderData.amount * 100), // in paise
-        currency: 'INR',
-        name: 'SkillHire',
-        description: 'Payment for services',
-        order_id: orderData.razorpayOrderId,
-        handler: async function (response: any) {
-          const paymentData = {
-            orderId: orderData.orderId,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpayOrderId: response.razorpay_order_id,
-            razorpaySignature: response.razorpay_signature,
-          };
+      // Before opening Razorpay, temporarily close our dialog
+      // This prevents z-index conflicts
+      onOpenChange(false);
 
-          const success = await verifyPayment(paymentData);
+      // Add a slight delay to ensure our dialog is fully closed
+      setTimeout(() => {
+        // Configure Razorpay options
+        const options = {
+          key: orderData.key,
+          amount: Math.round(orderData.amount * 100), // in paise
+          currency: 'INR',
+          name: 'SkillHire',
+          description: 'Payment for services',
+          order_id: orderData.razorpayOrderId,
+          handler: async function (response: any) {
+            const paymentData = {
+              orderId: orderData.orderId,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpaySignature: response.razorpay_signature,
+            };
 
-          if (success) {
-            clearCart();
-            toast.success('Payment successful', {
-              description: 'Your order has been placed successfully'
-            });
-            onOpenChange(false);
-            navigate('/client/orders');
-          } else {
-            toast.error('Payment verification failed', {
-              description: 'Please try again or contact support'
-            });
-          }
-        },
-        prefill: {
-          name: '',
-          email: '',
-          contact: '',
-        },
-        theme: {
-          color: '#6366F1',
-        },
-        modal: {
-          ondismiss: function () {
-            setIsProcessing(false);
-            toast.info('Checkout canceled', {
-              description: 'You can complete your purchase later'
-            });
+            try {
+              const success = await verifyPayment(paymentData);
+              
+              // Reopen our dialog with success state
+              setPaymentStatus(success ? 'success' : 'error');
+              onOpenChange(true);
+
+              if (success) {
+                clearCart();
+              }
+            } catch (error) {
+              console.error('Payment verification error:', error);
+              setPaymentStatus('error');
+              onOpenChange(true);
+            }
           },
-        },
-      };
+          prefill: {
+            name: '',
+            email: '',
+            contact: '',
+          },
+          theme: {
+            color: '#6366F1',
+          },
+          modal: {
+            ondismiss: function () {
+              setIsProcessing(false);
+              setPaymentStatus('idle');
+              // Reopen our checkout dialog
+              onOpenChange(true);
+              toast.info('Payment cancelled', {
+                description: 'You can try again or complete your purchase later'
+              });
+            },
+            escape: false,
+            animation: true,
+          },
+        };
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
+        const razorpay = new window.Razorpay(options);
+        razorpay.open();
+      }, 300);
     } catch (error) {
       console.error('Checkout error:', error);
       toast.error('Checkout failed', {
         description: error instanceof Error ? error.message : 'Something went wrong'
       });
+      setPaymentStatus('error');
+      onOpenChange(true);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Checkout</DialogTitle>
-          <DialogDescription>
-            You will be redirected to Razorpay to complete your payment securely.
-          </DialogDescription>
-        </DialogHeader>
+  const viewOrders = () => {
+    onOpenChange(false);
+    navigate('/client/orders');
+  };
 
-        <div className="py-4">
-          <div className="space-y-4">
-            <div className="flex justify-between font-medium">
-              <span>Total Amount:</span>
-              <span>${getTotalPrice().toFixed(2)}</span>
-            </div>
-            
-            <p className="text-sm text-muted-foreground">
-              By proceeding, you agree to our terms of service and privacy policy.
+  const tryAgain = () => {
+    setPaymentStatus('idle');
+  };
+
+  const renderContent = () => {
+    switch (paymentStatus) {
+      case 'processing':
+        return (
+          <div className="flex flex-col items-center justify-center py-8">
+            <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+            <h2 className="text-xl font-semibold">Processing your payment</h2>
+            <p className="text-center text-muted-foreground mt-2">
+              Please wait while we connect to the payment gateway...
             </p>
           </div>
-        </div>
+        );
+      
+      case 'success':
+        return (
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="rounded-full bg-green-100 p-3 mb-4">
+              <CheckCircle className="h-10 w-10 text-green-600" />
+            </div>
+            <h2 className="text-xl font-semibold">Payment Successful!</h2>
+            <p className="text-center text-muted-foreground mt-2">
+              Your order has been placed successfully.
+            </p>
+            <Button onClick={viewOrders} className="mt-6">
+              View Your Orders
+            </Button>
+          </div>
+        );
+      
+      case 'error':
+        return (
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="rounded-full bg-red-100 p-3 mb-4">
+              <AlertCircle className="h-10 w-10 text-red-600" />
+            </div>
+            <h2 className="text-xl font-semibold">Payment Failed</h2>
+            <p className="text-center text-muted-foreground mt-2">
+              We couldn't process your payment. Please try again.
+            </p>
+            <div className="flex gap-3 mt-6">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={tryAgain}>
+                Try Again
+              </Button>
+            </div>
+          </div>
+        );
+      
+      default:
+        return (
+          <>
+            <DialogHeader>
+              <DialogTitle>Checkout</DialogTitle>
+              <DialogDescription>
+                You will be redirected to Razorpay to complete your payment securely.
+              </DialogDescription>
+            </DialogHeader>
 
-        <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isProcessing}
-          >
-            Cancel
-          </Button>
-          <Button onClick={handleCheckout} disabled={isProcessing}>
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              'Proceed to Payment'
-            )}
-          </Button>
-        </DialogFooter>
+            <div className="py-4">
+              <div className="space-y-4">
+                <div className="flex justify-between font-medium">
+                  <span>Total Amount:</span>
+                  <span>${getTotalPrice().toFixed(2)}</span>
+                </div>
+                
+                <div className="flex items-center gap-2 rounded-md border p-3 bg-muted/50">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  <p className="text-sm">
+                    Secure payment powered by Razorpay
+                  </p>
+                </div>
+                
+                <p className="text-sm text-muted-foreground">
+                  By proceeding, you agree to our terms of service and privacy policy.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isProcessing}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleCheckout} disabled={isProcessing}>
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Proceed to Payment'
+                )}
+              </Button>
+            </DialogFooter>
+          </>
+        );
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      // Prevent closing dialog during processing state
+      if (paymentStatus === 'processing' && !newOpen) {
+        return;
+      }
+      onOpenChange(newOpen);
+    }}>
+      <DialogContent className="sm:max-w-md">
+        {renderContent()}
       </DialogContent>
     </Dialog>
   );

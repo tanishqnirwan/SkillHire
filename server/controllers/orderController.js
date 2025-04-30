@@ -218,8 +218,8 @@ exports.retryPayment = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    if (order.status !== "failed") {
-      return res.status(400).json({ error: "Only failed orders can be retried" });
+    if (order.status !== "pending") {
+      return res.status(400).json({ error: "Only pending orders can be retried" });
     }
 
     // Create Razorpay order
