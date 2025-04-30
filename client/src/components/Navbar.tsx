@@ -6,8 +6,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { PackageOpen, User, LogOut } from 'lucide-react'
 import Cart from '@/components/Cart'
 
 const Navbar = () => {
@@ -17,6 +19,16 @@ const Navbar = () => {
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const navigateToDashboard = () => {
+    navigate('/dashboard')
+  }
+
+  const navigateToOrders = () => {
+    if (user?.role === 'client') {
+      navigate('/client/orders')
+    }
   }
 
   return (
@@ -37,8 +49,23 @@ const Navbar = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={navigateToDashboard}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Dashboard</span>
+                </DropdownMenuItem>
+                
+                {user?.role === 'client' && (
+                  <DropdownMenuItem onClick={navigateToOrders}>
+                    <PackageOpen className="mr-2 h-4 w-4" />
+                    <span>My Orders</span>
+                  </DropdownMenuItem>
+                )}
+                
+                <DropdownMenuSeparator />
+                
                 <DropdownMenuItem onClick={handleLogout}>
-                  Logout
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+
 import { useCartStore } from '@/store/cartStore'
 import { Button } from '@/components/ui/button'
 import { ShoppingCart, Plus, Minus, ShoppingBag } from 'lucide-react'
@@ -21,7 +21,7 @@ const CartButton = ({
   price,
   imagePublicId,
   freelancerId,
-  variant = 'default',
+
   size = 'default',
   className = '',
 }: CartButtonProps) => {

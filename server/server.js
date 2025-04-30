@@ -11,12 +11,11 @@ app.use(express.json());
 
 const serviceRoutes = require('./routes/service');
 const authRoutes = require('./routes/auth');
-
-
-
+const orderRoutes = require('./routes/order');
 
 app.use("/api/auth", authRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/orders', orderRoutes);
 
 const PORT = process.env.PORT || 5000;
 

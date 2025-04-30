@@ -10,6 +10,7 @@ import CreateService from '@/pages/freelancer/CreateService'
 import EditService from '@/pages/freelancer/EditService'
 import ClientDashboard from '@/pages/client/Dashboard'
 import ServiceDetail from '@/pages/client/ServiceDetail'
+import ClientOrders from '@/pages/client/Orders'
 import { useAuth } from '@/contexts/AuthContext'
 
 function App() {
@@ -41,6 +42,7 @@ function App() {
               <Route element={<Layout />}>
                 <Route path="/client/dashboard" element={<ClientDashboard />} />
                 <Route path="/services/:id" element={<ServiceDetail />} />
+                <Route path="/client/orders" element={<ClientOrders />} />
               </Route>
             </Route>
           </Route>

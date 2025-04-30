@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
-import { Search } from 'lucide-react'
+import { Search, PackageOpen } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import CartButton from '@/components/CartButton'
 
@@ -25,6 +25,7 @@ interface Service {
 
 const ClientDashboard = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [services, setServices] = useState<Service[]>([])
   const [filteredServices, setFilteredServices] = useState<Service[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -71,6 +72,14 @@ const ClientDashboard = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Welcome back, {user?.email ? user.email.split('@')[0] : 'Client'}</h1>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          onClick={() => navigate('/client/orders')}
+        >
+          <PackageOpen className="h-4 w-4" />
+          <span>My Orders</span>
+        </Button>
       </div>
 
       <div className="relative">

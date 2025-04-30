@@ -11,6 +11,7 @@ import {
   SheetTrigger
 } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
+import Checkout from './Checkout'
 
 interface CartProps {
   size?: 'default' | 'lg'
@@ -28,6 +29,7 @@ const Cart = ({ size = 'default' }: CartProps) => {
   } = useCartStore()
   
   const [open, setOpen] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 
   // Size variants
@@ -35,75 +37,85 @@ const Cart = ({ size = 'default' }: CartProps) => {
   const iconSizeClass = size === 'lg' ? 'h-6 w-6' : 'h-5 w-5'
   const badgeSizeClass = size === 'lg' ? 'px-2 py-1 -top-3 -right-3 min-w-[1.5rem] text-xs' : 'px-2 py-1 -top-2 -right-2 min-w-[1.5rem] text-xs'
   
+  const handleCheckout = () => {
+    setCheckoutOpen(true)
+    // Keep cart open to allow user to review items
+    // setOpen(false)
+  }
+  
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button 
-          variant="outline" 
-          size="icon" 
-          className={`relative ${buttonSizeClass}`}
-          data-cart-trigger="true"
-        >
-          <ShoppingCart className={iconSizeClass} />
-          {getTotalItems() > 0 && (
-            <Badge className={`absolute ${badgeSizeClass} flex items-center justify-center`}>
-              {getTotalItems()}
-            </Badge>
-          )}
-        </Button>
-      </SheetTrigger>
-      <SheetContent className="flex flex-col h-full">
-        <SheetHeader>
-          <SheetTitle>Your Cart</SheetTitle>
-        </SheetHeader>
-        
-        <div className="flex-1 overflow-y-auto py-4">
-          {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <ShoppingCart className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">Your cart is empty</h3>
-              <p className="text-muted-foreground mt-1">
-                Add items to your cart to get started
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {items.map((item) => (
-                <CartItemCard 
-                  key={item.id} 
-                  item={item} 
-                  cloudName={cloudName}
-                  onRemove={() => removeItem(item.id)}
-                  onIncrease={() => increaseQuantity(item.id)}
-                  onDecrease={() => decreaseQuantity(item.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        
-        {items.length > 0 && (
-          <div className="border-t pt-4">
-            <div className="flex justify-between mb-4">
-              <span className="font-medium">Total</span>
-              <span className="font-bold">${getTotalPrice().toFixed(2)}</span>
-            </div>
-            <SheetFooter className="flex flex-col gap-2 sm:flex-col">
-              <Button className="w-full" onClick={() => { /* Implement checkout */ }}>
-                Proceed to Checkout
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => clearCart()}
-              >
-                Clear Cart
-              </Button>
-            </SheetFooter>
+    <>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className={`relative ${buttonSizeClass}`}
+            data-cart-trigger="true"
+          >
+            <ShoppingCart className={iconSizeClass} />
+            {getTotalItems() > 0 && (
+              <Badge className={`absolute ${badgeSizeClass} flex items-center justify-center`}>
+                {getTotalItems()}
+              </Badge>
+            )}
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="flex flex-col h-full">
+          <SheetHeader>
+            <SheetTitle>Your Cart</SheetTitle>
+          </SheetHeader>
+          
+          <div className="flex-1 overflow-y-auto py-4">
+            {items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                <ShoppingCart className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">Your cart is empty</h3>
+                <p className="text-muted-foreground mt-1">
+                  Add items to your cart to get started
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {items.map((item) => (
+                  <CartItemCard 
+                    key={item.id} 
+                    item={item} 
+                    cloudName={cloudName}
+                    onRemove={() => removeItem(item.id)}
+                    onIncrease={() => increaseQuantity(item.id)}
+                    onDecrease={() => decreaseQuantity(item.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </SheetContent>
-    </Sheet>
+          
+          {items.length > 0 && (
+            <div className="border-t pt-4">
+              <div className="flex justify-between mb-4">
+                <span className="font-medium">Total</span>
+                <span className="font-bold">${getTotalPrice().toFixed(2)}</span>
+              </div>
+              <SheetFooter className="flex flex-col gap-2 sm:flex-col">
+                <Button className="w-full" onClick={handleCheckout}>
+                  Proceed to Checkout
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => clearCart()}
+                >
+                  Clear Cart
+                </Button>
+              </SheetFooter>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+      
+      <Checkout open={checkoutOpen} onOpenChange={setCheckoutOpen} />
+    </>
   )
 }
 
