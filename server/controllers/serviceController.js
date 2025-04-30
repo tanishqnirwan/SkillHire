@@ -1,7 +1,25 @@
-const { Service } = require("../models");
+const { Service, User } = require("../models");
 const cloudinary = require('../config/cloudinary');
 const path = require('path');
 const fs = require('fs');
+
+// Get all services with freelancer info for browsing (public)
+exports.browseServices = async (req, res) => {
+  try {
+    const services = await Service.findAll({
+      include: [
+        {
+          model: User,
+          as: 'freelancer',
+          attributes: ['id', 'name', 'email'] // Only include necessary fields
+        }
+      ]
+    });
+    res.json(services);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 exports.createService = async (req, res) => {
   try {
@@ -30,7 +48,18 @@ exports.createService = async (req, res) => {
       freelancerId,
     });
 
-    res.status(201).json(service);
+    // Get the newly created service with freelancer info
+    const serviceWithFreelancer = await Service.findByPk(service.id, {
+      include: [
+        {
+          model: User,
+          as: 'freelancer',
+          attributes: ['id', 'name', 'email']
+        }
+      ]
+    });
+
+    res.status(201).json(serviceWithFreelancer);
   } catch (err) {
     // Clean up the temporary file if it exists
     if (req.file && req.file.path) {
@@ -69,7 +98,19 @@ exports.updateService = async (req, res) => {
     }
 
     await service.update(updateData);
-    res.json(service);
+    
+    // Get the updated service with freelancer info
+    const updatedService = await Service.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'freelancer',
+          attributes: ['id', 'name', 'email']
+        }
+      ]
+    });
+    
+    res.json(updatedService);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -98,7 +139,16 @@ exports.deleteService = async (req, res) => {
 exports.getFreelancerServices = async (req, res) => {
   try {
     const freelancerId = req.user.id;
-    const services = await Service.findAll({ where: { freelancerId } });
+    const services = await Service.findAll({ 
+      where: { freelancerId },
+      include: [
+        {
+          model: User,
+          as: 'freelancer',
+          attributes: ['id', 'name', 'email']
+        }
+      ]
+    });
     res.json(services);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -108,12 +158,22 @@ exports.getFreelancerServices = async (req, res) => {
 exports.getServiceById = async (req, res) => {
   try {
    const { id } = req.params;
-   const service = await Service.findByPk(id);
+   const service = await Service.findByPk(id, {
+     include: [
+       {
+         model: User,
+         as: 'freelancer',
+         attributes: ['id', 'name', 'email']
+       }
+     ]
+   });
    if (!service) return res.status(404).json({ message: "Service not found" });
    res.json(service);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
+
 
 
