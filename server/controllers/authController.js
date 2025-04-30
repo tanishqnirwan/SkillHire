@@ -46,3 +46,15 @@ exports.login = async (req, res) => {
     return res.status(500).json({ msg: "Server error", error: err.message });
   }
 };
+
+exports.verify = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    return res.json({ user });
+  } catch (err) {
+    return res.status(500).json({ msg: "Server error", error: err.message });
+  }
+};

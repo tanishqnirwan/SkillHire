@@ -9,14 +9,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// const serviceRoutes = require('./routes/serviceRoutes');
+const serviceRoutes = require('./routes/service');
 const authRoutes = require('./routes/auth');
 
 
 
 
 app.use("/api/auth", authRoutes);
-// app.use('/api/services', serviceRoutes);
+app.use('/api/services', serviceRoutes);
 
 const PORT = process.env.PORT || 5000;
 

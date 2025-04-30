@@ -2,13 +2,13 @@ const { Sequelize, DataTypes } = require("sequelize");
 const dotenv = require("dotenv");
 dotenv.config();
 
-// Supabase connection with Sequelize
+
 const sequelize = new Sequelize(process.env.SUPABASE_URL, {
   dialect: "postgres",
   dialectOptions: {
     ssl: {
       require: true,
-      rejectUnauthorized: false // You might need this if you encounter SSL issues
+      rejectUnauthorized: false 
     }
   },
   logging: false
@@ -18,7 +18,17 @@ const db = {};
 db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 
-// Import models
-db.User = require("./user")(sequelize, DataTypes);
 
-module.exports = db;
+db.User = require("./user")(sequelize, DataTypes);
+ db.Service = require("./service")(sequelize, DataTypes);
+
+
+db.User.hasMany(db.Service, { foreignKey: "freelancerId", as: "services" });
+db.Service.belongsTo(db.User, { foreignKey: "freelancerId", as: "freelancer" });
+
+module.exports = {
+  sequelize,
+  User: db.User,
+  Service: db.Service,
+ 
+};
