@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    // Foreign key to User (Freelancer)
+ 
     freelancerId: {
       type: DataTypes.UUID,
       allowNull: false,

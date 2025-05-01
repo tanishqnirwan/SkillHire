@@ -13,44 +13,47 @@ import ClientDashboard from '@/pages/client/Dashboard'
 import ServiceDetail from '@/pages/client/ServiceDetail'
 import ClientOrders from '@/pages/client/Orders'
 import { useAuth } from '@/contexts/AuthContext'
+import ServerStatusCheck from '@/components/ServerStatusCheck'
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <ServerStatusCheck>
+        <Router>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Authenticated routes */}
-          <Route element={<AuthRoute />}>
-            {/* Default route - will redirect based on role */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardRedirect />} />
-            
-            {/* Freelancer routes */}
-            <Route element={<AuthRoute allowedRoles={['freelancer']} />}>
-              <Route element={<Layout />}>
-                <Route path="/freelancer/dashboard" element={<FreelancerDashboard />} />
-                <Route path="/freelancer/services/create" element={<CreateService />} />
-                <Route path="/freelancer/services/:id/edit" element={<EditService />} />
-                <Route path="/freelancer/orders" element={<FreelancerOrders />} />
+            {/* Authenticated routes */}
+            <Route element={<AuthRoute />}>
+              {/* Default route - will redirect based on role */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardRedirect />} />
+              
+              {/* Freelancer routes */}
+              <Route element={<AuthRoute allowedRoles={['freelancer']} />}>
+                <Route element={<Layout />}>
+                  <Route path="/freelancer/dashboard" element={<FreelancerDashboard />} />
+                  <Route path="/freelancer/services/create" element={<CreateService />} />
+                  <Route path="/freelancer/services/:id/edit" element={<EditService />} />
+                  <Route path="/freelancer/orders" element={<FreelancerOrders />} />
+                </Route>
+              </Route>
+
+              {/* Client routes */}
+              <Route element={<AuthRoute allowedRoles={['client']} />}>
+                <Route element={<Layout />}>
+                  <Route path="/client/dashboard" element={<ClientDashboard />} />
+                  <Route path="/services/:id" element={<ServiceDetail />} />
+                  <Route path="/client/orders" element={<ClientOrders />} />
+                </Route>
               </Route>
             </Route>
-
-            {/* Client routes */}
-            <Route element={<AuthRoute allowedRoles={['client']} />}>
-              <Route element={<Layout />}>
-                <Route path="/client/dashboard" element={<ClientDashboard />} />
-                <Route path="/services/:id" element={<ServiceDetail />} />
-                <Route path="/client/orders" element={<ClientOrders />} />
-              </Route>
-            </Route>
-          </Route>
-        </Routes>
-      </Router>
-      <Toaster />
+          </Routes>
+        </Router>
+        <Toaster />
+      </ServerStatusCheck>
     </AuthProvider>
   )
 }

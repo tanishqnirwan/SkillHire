@@ -16,7 +16,7 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ error: "No items provided" });
     }
 
-    // Calculate total amount and validate items
+    
     let totalAmount = 0;
     const serviceIds = items.map(item => item.serviceId);
     
@@ -28,14 +28,14 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ error: "One or more services not found" });
     }
 
-    // Create order in database
+ 
     const order = await Order.create({
       userId: req.user.id,
-      totalAmount: 0, // Will update after calculation
+      totalAmount: 0, 
       status: "pending"
     });
 
-    // Create order items and calculate total
+   
     const orderItems = [];
     for (const item of items) {
       const service = services.find(s => s.id === item.serviceId);
@@ -52,17 +52,17 @@ exports.createOrder = async (req, res) => {
       orderItems.push(orderItem);
     }
 
-    // Update total amount
+   
     await order.update({ totalAmount });
 
-    // Create Razorpay order
+    
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(totalAmount * 100), // Convert to paise
+      amount: Math.round(totalAmount * 100),
       currency: "INR",
       receipt: order.id,
     });
 
-    // Update order with Razorpay order ID
+  
     await order.update({ razorpayOrderId: razorpayOrder.id });
 
     return res.status(201).json({
@@ -89,19 +89,19 @@ exports.verifyPayment = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Verify signature
+   
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpayOrderId}|${razorpayPaymentId}`)
       .digest("hex");
 
     if (generatedSignature !== razorpaySignature) {
-      // Update order status to failed
+      
       await order.update({ status: "failed" });
       return res.status(400).json({ error: "Invalid signature" });
     }
 
-    // Create payment record
+  
     await Payment.create({
       orderId: order.id,
       razorpayPaymentId,
@@ -110,7 +110,7 @@ exports.verifyPayment = async (req, res) => {
       status: "success",
     });
 
-    // Update order status
+ 
     await order.update({ status: "paid" });
 
     return res.status(200).json({ success: true, order });
@@ -222,14 +222,14 @@ exports.retryPayment = async (req, res) => {
       return res.status(400).json({ error: "Only pending orders can be retried" });
     }
 
-    // Create Razorpay order
+   
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(order.totalAmount * 100), // Convert to paise
+      amount: Math.round(order.totalAmount * 100), 
       currency: "INR",
       receipt: order.id,
     });
 
-    // Update order with new Razorpay order ID
+  
     await order.update({ 
       razorpayOrderId: razorpayOrder.id,
       status: "pending" 
@@ -249,7 +249,7 @@ exports.retryPayment = async (req, res) => {
 
 exports.getReceivedOrders = async (req, res) => {
   try {
-    // First, get all services created by this freelancer
+  
     const services = await Service.findAll({
       where: { freelancerId: req.user.id }
     });
@@ -260,7 +260,7 @@ exports.getReceivedOrders = async (req, res) => {
 
     const serviceIds = services.map(service => service.id);
 
-    // Find all order items that contain the freelancer's services
+   
     const orderItems = await OrderItem.findAll({
       where: { serviceId: serviceIds },
       include: [
@@ -283,7 +283,7 @@ exports.getReceivedOrders = async (req, res) => {
       ]
     });
 
-    // Transform the data to the required format
+   
     const transformedOrders = orderItems.map(item => {
       return {
         id: item.order.id,
@@ -309,7 +309,7 @@ exports.completeOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
     
-    // Verify that this order contains a service by this freelancer
+ 
     const services = await Service.findAll({
       where: { freelancerId: req.user.id }
     });
@@ -341,7 +341,7 @@ exports.completeOrder = async (req, res) => {
       return res.status(400).json({ error: "Only paid orders can be marked as completed" });
     }
     
-    // Update order status to completed
+ 
     await order.update({ status: "completed" });
     
     return res.status(200).json({ 

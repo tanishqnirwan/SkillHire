@@ -17,6 +17,11 @@ app.use("/api/auth", authRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/orders', orderRoutes);
 
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is up and running' });
+});
+
 const PORT = process.env.PORT || 5000;
 
 db.sequelize.sync().then(() => {

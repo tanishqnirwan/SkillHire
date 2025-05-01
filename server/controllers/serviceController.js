@@ -3,7 +3,7 @@ const cloudinary = require('../config/cloudinary');
 const path = require('path');
 const fs = require('fs');
 
-// Get all services with freelancer info for browsing (public)
+
 exports.browseServices = async (req, res) => {
   try {
     const services = await Service.findAll({
@@ -11,7 +11,7 @@ exports.browseServices = async (req, res) => {
         {
           model: User,
           as: 'freelancer',
-          attributes: ['id', 'name', 'email'] // Only include necessary fields
+          attributes: ['id', 'name', 'email'] 
         }
       ]
     });
@@ -30,13 +30,13 @@ exports.createService = async (req, res) => {
       return res.status(400).json({ message: "Please upload an image" });
     }
 
-    // Upload image to Cloudinary
+   
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: 'skillhire/services',
       resource_type: 'auto'
     });
 
-    // Delete the temporary file
+    
     fs.unlinkSync(req.file.path);
 
     const service = await Service.create({
@@ -48,7 +48,7 @@ exports.createService = async (req, res) => {
       freelancerId,
     });
 
-    // Get the newly created service with freelancer info
+    
     const serviceWithFreelancer = await Service.findByPk(service.id, {
       include: [
         {
@@ -61,7 +61,7 @@ exports.createService = async (req, res) => {
 
     res.status(201).json(serviceWithFreelancer);
   } catch (err) {
-    // Clean up the temporary file if it exists
+ 
     if (req.file && req.file.path) {
       fs.unlinkSync(req.file.path);
     }
@@ -80,18 +80,21 @@ exports.updateService = async (req, res) => {
     const { title, description, price } = req.body;
     const updateData = { title, description, price };
 
-    // If a new image is uploaded
+
     if (req.file) {
-      // Delete old image from Cloudinary if exists
+    
       if (service.imagePublicId) {
         await cloudinary.uploader.destroy(service.imagePublicId);
       }
 
-      // Upload new image
+      
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: 'skillhire/services',
         resource_type: 'auto'
       });
+
+     
+      fs.unlinkSync(req.file.path);
 
       updateData.imageUrl = result.secure_url;
       updateData.imagePublicId = result.public_id;
