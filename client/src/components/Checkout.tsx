@@ -28,10 +28,10 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
   const { items, clearCart, getTotalPrice } = useCartStore();
   const { createOrder, verifyPayment } = useOrderStore();
 
-  // Reset state when dialog opens/closes
+ 
   useEffect(() => {
     if (!open) {
-      // Only reset if not in success state (to keep success message visible)
+     
       if (paymentStatus !== 'success') {
         setPaymentStatus('idle');
         setOrderId(null);
@@ -39,7 +39,7 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
     }
   }, [open, paymentStatus]);
 
-  // Add global style for Razorpay iframe when component mounts
+ 
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
@@ -52,13 +52,13 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
     `;
     style.id = 'razorpay-style-fix';
     
-    // Only add if not already present
+   
     if (!document.getElementById('razorpay-style-fix')) {
       document.head.appendChild(style);
     }
     
     return () => {
-      // Cleanup on component unmount
+     
       const existingStyle = document.getElementById('razorpay-style-fix');
       if (existingStyle) {
         existingStyle.remove();
@@ -88,13 +88,13 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
     setPaymentStatus('processing');
 
     try {
-      // Prepare items for order creation
+      
       const orderItems = items.map((item) => ({
         serviceId: item.id,
         quantity: item.quantity,
       }));
 
-      // Create order on backend
+     
       const orderData = await createOrder(orderItems);
 
       if (!orderData) {
@@ -103,22 +103,21 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
 
       setOrderId(orderData.orderId);
 
-      // Check if Razorpay is loaded
+     
       const isLoaded = await loadRazorpayScript();
       if (!isLoaded) {
         throw new Error('Razorpay SDK failed to load');
       }
 
-      // Before opening Razorpay, temporarily close our dialog
-      // This prevents z-index conflicts
+      
       onOpenChange(false);
 
-      // Add a slight delay to ensure our dialog is fully closed
+      
       setTimeout(() => {
-        // Configure Razorpay options
+       
         const options = {
           key: orderData.key,
-          amount: Math.round(orderData.amount * 100), // in paise
+          amount: Math.round(orderData.amount * 100), 
           currency: 'INR',
           name: 'SkillHire',
           description: 'Payment for services',
@@ -134,7 +133,7 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
             try {
               const success = await verifyPayment(paymentData);
               
-              // Reopen our dialog with success state
+             
               setPaymentStatus(success ? 'success' : 'error');
               onOpenChange(true);
 
@@ -159,7 +158,7 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
             ondismiss: function () {
               setIsProcessing(false);
               setPaymentStatus('idle');
-              // Reopen our checkout dialog
+              
               onOpenChange(true);
               toast.info('Payment cancelled', {
                 description: 'You can try again or complete your purchase later'
@@ -256,9 +255,9 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
 
             <div className="py-4">
               <div className="space-y-4">
-                <div className="flex justify-between font-medium">
-                  <span>Total Amount:</span>
-                  <span>${getTotalPrice().toFixed(2)}</span>
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-base font-medium">Order Total:</span>
+                  <span>₹{getTotalPrice().toFixed(2)}</span>
                 </div>
                 
                 <div className="flex items-center gap-2 rounded-md border p-3 bg-muted/50">
@@ -300,7 +299,7 @@ const Checkout = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
-      // Prevent closing dialog during processing state
+      
       if (paymentStatus === 'processing' && !newOpen) {
         return;
       }

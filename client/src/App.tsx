@@ -8,6 +8,7 @@ import Register from '@/pages/auth/Register'
 import FreelancerDashboard from '@/pages/freelancer/Dashboard'
 import CreateService from '@/pages/freelancer/CreateService'
 import EditService from '@/pages/freelancer/EditService'
+import FreelancerOrders from '@/pages/freelancer/Orders'
 import ClientDashboard from '@/pages/client/Dashboard'
 import ServiceDetail from '@/pages/client/ServiceDetail'
 import ClientOrders from '@/pages/client/Orders'
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/freelancer/dashboard" element={<FreelancerDashboard />} />
                 <Route path="/freelancer/services/create" element={<CreateService />} />
                 <Route path="/freelancer/services/:id/edit" element={<EditService />} />
+                <Route path="/freelancer/orders" element={<FreelancerOrders />} />
               </Route>
             </Route>
 

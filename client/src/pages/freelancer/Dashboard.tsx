@@ -22,7 +22,8 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle, 
-  CardDescription 
+  CardDescription,
+  CardFooter
 } from '@/components/ui/card'
 import { 
   Edit, 
@@ -30,7 +31,9 @@ import {
   MoreVertical, 
   Plus, 
   Briefcase, 
-  AlertCircle 
+  AlertCircle,
+  PackageOpen,
+  DollarSign,
 } from 'lucide-react'
 import { 
   AlertDialog,
@@ -53,25 +56,103 @@ interface Service {
   imageUrl: string
 }
 
+interface Order {
+  id: string
+  serviceId: string
+  serviceName: string
+  servicePrice: number
+  clientId: string
+  clientName: string
+  status: 'pending' | 'paid' | 'completed' | 'canceled'
+  createdAt: string
+  updatedAt: string
+}
+
+interface Stats {
+  totalServices: number
+  totalOrders: number
+  totalEarnings: number
+  activeOrders: number
+}
+
 const FreelancerDashboard = () => {
   const [services, setServices] = useState<Service[]>([])
+  const [stats, setStats] = useState<Stats>({
+    totalServices: 0,
+    totalOrders: 0,
+    totalEarnings: 0,
+    activeOrders: 0
+  })
   const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     fetchServices()
+    fetchStats()
   }, [])
 
   const fetchServices = async () => {
     try {
       const response = await axios.get('/services/my')
       setServices(response.data)
+      
+      // Update service count in stats
+      setStats(prevStats => ({
+        ...prevStats,
+        totalServices: response.data.length
+      }))
     } catch (error) {
       toast.error('Failed to fetch services')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchStats = async () => {
+    setStatsLoading(true)
+    try {
+      
+      const servicesResponse = await axios.get('/services/my');
+      const servicesList = servicesResponse.data;
+      const servicesCount = servicesList.length;
+
+    
+      const ordersResponse = await axios.get('/orders/received')
+      const orders: Order[] = ordersResponse.data
+      
+     
+      const activeOrders = orders.filter((order: Order) => 
+        order.status === 'paid' || order.status === 'pending'
+      ).length
+      
+      const totalOrders = orders.length
+      
+      
+      const totalEarnings = orders
+        .filter((order: Order) => order.status === 'completed' || order.status === 'paid')
+        .reduce((sum: number, order: Order) => sum + order.servicePrice, 0)
+      
+      setStats({
+        totalServices: servicesCount,
+        activeOrders,
+        totalOrders,
+        totalEarnings
+      })
+    } catch (error) {
+      console.error('Failed to fetch stats:', error)
+      
+      setStats(prevStats => ({
+        ...prevStats,
+        totalServices: services.length,
+        activeOrders: 0,
+        totalOrders: 0,
+        totalEarnings: 0
+      }))
+    } finally {
+      setStatsLoading(false)
     }
   }
 
@@ -82,6 +163,11 @@ const FreelancerDashboard = () => {
     try {
       await axios.delete(`/services/${deleteId}`)
       setServices(services.filter(service => service.id !== deleteId))
+    
+      setStats(prevStats => ({
+        ...prevStats,
+        totalServices: prevStats.totalServices - 1
+      }))
       toast.success('Service deleted successfully')
       setDeleteId(null)
     } catch (error) {
@@ -96,13 +182,28 @@ const FreelancerDashboard = () => {
     return text.substring(0, maxLength) + '...'
   }
 
-  if (loading) {
+  if (loading && statsLoading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-36" />
         </div>
+        
+        {/* Stats cards skeleton */}
+        <div className="grid gap-6 mb-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-7 w-20" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        
         <Card>
           <CardHeader>
             <Skeleton className="h-6 w-36" />
@@ -128,19 +229,110 @@ const FreelancerDashboard = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Briefcase size={24} />
-          My Services
-        </h1>
+        <h1 className="text-3xl font-bold">Freelancer Dashboard</h1>
         <Button onClick={() => navigate('/freelancer/services/create')} className="flex items-center gap-2">
           <Plus size={16} />
           Create New Service
         </Button>
       </div>
 
+   
+      <div className="grid gap-6 mb-8 grid-cols-1 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+              <Briefcase className="mr-2 h-4 w-4 text-muted-foreground" />
+              Total Services
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {statsLoading ? <Skeleton className="h-7 w-16" /> : stats.totalServices}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+              <PackageOpen className="mr-2 h-4 w-4 text-muted-foreground" />
+              Active Orders
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {statsLoading ? <Skeleton className="h-7 w-16" /> : stats.activeOrders}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+              <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
+              Total Earnings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {statsLoading ? 
+                <Skeleton className="h-7 w-28" /> : 
+                `₹${stats.totalEarnings.toFixed(2)}`
+              }
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+  
+      <div className="grid gap-6 mb-8 grid-cols-1 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Briefcase size={18} />
+              My Services
+            </CardTitle>
+            <CardDescription>
+              Manage your service offerings
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <p>You have {stats.totalServices} active services listed on the platform.</p>
+          </CardContent>
+          <CardFooter>
+            <Button variant="outline" className="w-full" onClick={() => navigate('/freelancer/services/create')}>
+              Add New Service
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <PackageOpen size={18} />
+              Client Orders
+            </CardTitle>
+            <CardDescription>
+              View and manage your orders
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <p>You have {stats.activeOrders} active orders to fulfill.</p>
+          </CardContent>
+          <CardFooter>
+            <Button variant="outline" className="w-full" onClick={() => navigate('/freelancer/orders')}>
+              View Orders
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Service Offerings</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Briefcase size={18} />
+            Service Offerings
+          </CardTitle>
           <CardDescription>
             Manage your services and offerings for clients
           </CardDescription>
@@ -173,7 +365,7 @@ const FreelancerDashboard = () => {
                       <TableCell>{truncateDescription(service.description)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                          ${service.price.toFixed(2)}
+                          ₹{service.price.toFixed(2)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">

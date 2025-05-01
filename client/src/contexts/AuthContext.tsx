@@ -6,6 +6,7 @@ interface User {
   id: string
   email: string
   role: 'freelancer' | 'client'
+  name: string
 }
 
 interface AuthContextType {

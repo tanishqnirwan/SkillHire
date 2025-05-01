@@ -1,7 +1,7 @@
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const db = require("../models");
-const { Order, OrderItem, Payment, Service } = db;
+const { Order, OrderItem, Payment, Service, User } = db;
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -244,5 +244,112 @@ exports.retryPayment = async (req, res) => {
   } catch (error) {
     console.error("Error retrying payment:", error);
     return res.status(500).json({ error: "Failed to retry payment" });
+  }
+};
+
+exports.getReceivedOrders = async (req, res) => {
+  try {
+    // First, get all services created by this freelancer
+    const services = await Service.findAll({
+      where: { freelancerId: req.user.id }
+    });
+
+    if (!services.length) {
+      return res.status(200).json([]);
+    }
+
+    const serviceIds = services.map(service => service.id);
+
+    // Find all order items that contain the freelancer's services
+    const orderItems = await OrderItem.findAll({
+      where: { serviceId: serviceIds },
+      include: [
+        {
+          model: Order,
+          as: "order",
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["id", "name", "email"]
+            }
+          ]
+        },
+        {
+          model: Service,
+          as: "service",
+          attributes: ["id", "title", "price", "imagePublicId"]
+        }
+      ]
+    });
+
+    // Transform the data to the required format
+    const transformedOrders = orderItems.map(item => {
+      return {
+        id: item.order.id,
+        serviceId: item.service.id,
+        serviceName: item.service.title,
+        servicePrice: item.price,
+        clientId: item.order.user.id,
+        clientName: item.order.user.name,
+        status: item.order.status,
+        createdAt: item.order.createdAt,
+        updatedAt: item.order.updatedAt
+      };
+    });
+
+    return res.status(200).json(transformedOrders);
+  } catch (error) {
+    console.error("Error fetching received orders:", error);
+    return res.status(500).json({ error: "Failed to fetch received orders" });
+  }
+};
+
+exports.completeOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // Verify that this order contains a service by this freelancer
+    const services = await Service.findAll({
+      where: { freelancerId: req.user.id }
+    });
+    
+    if (!services.length) {
+      return res.status(403).json({ error: "You don't have any services" });
+    }
+    
+    const serviceIds = services.map(service => service.id);
+    
+    const orderItem = await OrderItem.findOne({
+      where: { 
+        orderId,
+        serviceId: serviceIds
+      },
+      include: [{
+        model: Order,
+        as: "order"
+      }]
+    });
+    
+    if (!orderItem) {
+      return res.status(404).json({ error: "Order not found or you don't have permission" });
+    }
+    
+    const order = orderItem.order;
+    
+    if (order.status !== "paid") {
+      return res.status(400).json({ error: "Only paid orders can be marked as completed" });
+    }
+    
+    // Update order status to completed
+    await order.update({ status: "completed" });
+    
+    return res.status(200).json({ 
+      success: true,
+      message: "Order marked as completed successfully"
+    });
+  } catch (error) {
+    console.error("Error completing order:", error);
+    return res.status(500).json({ error: "Failed to complete order" });
   }
 }; 

@@ -71,7 +71,7 @@ const ClientDashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Welcome back, {user?.email ? user.email.split('@')[0] : 'Client'}</h1>
+        <h1 className="text-2xl font-bold">Welcome back, {user?.name}</h1>
         <Button 
           variant="outline" 
           className="flex items-center gap-2"
@@ -119,7 +119,7 @@ const ServiceCard = ({ service }: ServiceCardProps) => {
     navigate(`/services/${service.id}`)
   }
 
-  // Get the first letter for the avatar, with fallbacks
+ 
   const getAvatarLetter = () => {
     if (service.freelancer && service.freelancer.name) {
       return service.freelancer.name[0] || '?';
@@ -129,7 +129,7 @@ const ServiceCard = ({ service }: ServiceCardProps) => {
 
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 
-  // Get the freelancer name with fallback
+  
   const getFreelancerName = () => {
     if (service.freelancer && service.freelancer.name) {
       return service.freelancer.name;
@@ -155,7 +155,7 @@ const ServiceCard = ({ service }: ServiceCardProps) => {
           <CardTitle className="text-lg font-semibold cursor-pointer hover:text-blue-600" onClick={handleViewDetails}>
             {service.title}
           </CardTitle>
-          <Badge variant="secondary">${service.price}</Badge>
+          <Badge variant="secondary">₹{service.price}</Badge>
         </div>
         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
           <Avatar className="h-6 w-6">

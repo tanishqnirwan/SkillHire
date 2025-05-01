@@ -31,7 +31,7 @@ import {
 
 const Orders = () => {
   const { orders, fetchOrders, loading, retryPayment, cancelOrder } = useOrderStore();
-  const [activeTab, setActiveTab] = useState('active');
+  const [activeTab, setActiveTab] = useState('paid');
   const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -42,7 +42,7 @@ const Orders = () => {
     fetchOrders();
   }, [fetchOrders]);
 
-  // Add global style for Razorpay iframe when component mounts
+
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
@@ -55,13 +55,13 @@ const Orders = () => {
     `;
     style.id = 'razorpay-retry-style-fix';
     
-    // Only add if not already present
+   
     if (!document.getElementById('razorpay-retry-style-fix')) {
       document.head.appendChild(style);
     }
     
     return () => {
-      // Cleanup on component unmount
+      
       const existingStyle = document.getElementById('razorpay-retry-style-fix');
       if (existingStyle) {
         existingStyle.remove();
@@ -77,10 +77,10 @@ const Orders = () => {
         throw new Error('Failed to initiate payment retry');
       }
 
-      // Close the confirm dialog before proceeding
+      
       setConfirmDialogOpen(false);
       
-      // Load Razorpay script
+      
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       document.body.appendChild(script);
@@ -187,19 +187,22 @@ const Orders = () => {
     }
   };
 
-  // Filter orders based on active tab
-  const filteredOrders = activeTab === 'active' 
-    ? orders.filter(order => order.status === 'pending' || order.status === 'paid')
-    : orders.filter(order => order.status === 'canceled');
-
-  // Sort orders to show pending orders first in active tab
-  const sortedOrders = [...filteredOrders].sort((a, b) => {
-    // If we're in the active tab, show pending orders first
-    if (activeTab === 'active') {
-      if (a.status === 'pending' && b.status !== 'pending') return -1;
-      if (a.status !== 'pending' && b.status === 'pending') return 1;
+  const getFilteredOrders = () => {
+    switch(activeTab) {
+      case 'paid':
+        return orders.filter(order => order.status === 'paid'|| order.status === 'pending');
+      case 'completed':
+        return orders.filter(order => order.status === 'completed');
+      case 'cancelled':
+        return orders.filter(order => order.status === 'canceled');
+      default:
+        return [];
     }
-    // Otherwise sort by date (newest first)
+  };
+
+  const filteredOrders = getFilteredOrders();
+ 
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
@@ -207,10 +210,11 @@ const Orders = () => {
     <div className="container mx-auto p-4 max-w-6xl">
       <h1 className="text-2xl font-bold mb-6">My Orders</h1>
 
-      <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="paid" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
-          <TabsTrigger value="active">Active Orders</TabsTrigger>
-          <TabsTrigger value="canceled">Canceled Orders</TabsTrigger>
+          <TabsTrigger value="paid">Paid Orders</TabsTrigger>
+          <TabsTrigger value="completed">Completed Orders</TabsTrigger>
+          <TabsTrigger value="cancelled">Cancelled Orders</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab}>
@@ -222,9 +226,11 @@ const Orders = () => {
             <div className="text-center py-12">
               <h3 className="text-lg font-medium">No orders found</h3>
               <p className="text-muted-foreground mt-1">
-                {activeTab === 'active' 
-                  ? "You don't have any active orders"
-                  : "You don't have any canceled orders"}
+                {activeTab === 'paid' 
+                  ? "You don't have any paid orders"
+                  : activeTab === 'completed'
+                  ? "You don't have any completed orders"
+                  : "You don't have any cancelled orders"}
               </p>
             </div>
           ) : (
@@ -256,7 +262,7 @@ const Orders = () => {
                             <li key={item.id} className="text-sm flex justify-between">
                               <span className="truncate flex-1">{item.service.title}</span>
                               <span className="text-muted-foreground ml-2">
-                                {item.quantity} x ${item.price.toFixed(2)}
+                                {item.quantity} x ₹{item.price.toFixed(2)}
                               </span>
                             </li>
                           ))}
@@ -265,7 +271,7 @@ const Orders = () => {
 
                       <div className="pt-2 flex justify-between border-t">
                         <span className="font-medium">Total Amount</span>
-                        <span className="font-bold">${order.totalAmount.toFixed(2)}</span>
+                        <span className="font-bold">₹{order.totalAmount.toFixed(2)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -309,7 +315,7 @@ const Orders = () => {
       <Dialog 
         open={confirmDialogOpen} 
         onOpenChange={(open) => {
-          // Don't allow closing during payment processing
+          
           if (retryingOrderId && !open) return;
           setConfirmDialogOpen(open);
           if (!open) {
@@ -377,6 +383,13 @@ const OrderStatusBadge = ({ status }: OrderStatusBadgeProps) => {
         };
       case 'paid':
         return { 
+          label: 'Paid', 
+          variant: 'success', 
+          icon: CheckCircle,
+          className: 'border-blue-200 bg-blue-50 text-blue-700'
+        };
+      case 'completed':
+        return { 
           label: 'Completed', 
           variant: 'success', 
           icon: CheckCircle,
@@ -384,7 +397,7 @@ const OrderStatusBadge = ({ status }: OrderStatusBadgeProps) => {
         };
       case 'canceled':
         return { 
-          label: 'Canceled', 
+          label: 'Cancelled', 
           variant: 'secondary', 
           icon: AlertTriangle,
           className: 'border-gray-200 bg-gray-50 text-gray-700'

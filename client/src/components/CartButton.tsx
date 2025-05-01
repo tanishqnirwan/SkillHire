@@ -27,7 +27,7 @@ const CartButton = ({
 }: CartButtonProps) => {
   const { items, addItem, increaseQuantity, decreaseQuantity } = useCartStore()
   
-  // Check if this item is already in the cart
+
   const existingItem = items.find(item => item.id === id)
   
   const handleAddToCart = () => {
@@ -41,7 +41,7 @@ const CartButton = ({
   }
 
   const handleOpenCart = () => {
-    // TypeScript-safe way to access the click method
+   
     const cartTrigger = document.querySelector('[data-cart-trigger="true"]') as HTMLButtonElement | null;
     if (cartTrigger) {
       cartTrigger.click();
