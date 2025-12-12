@@ -3,7 +3,23 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 
-const sequelize = new Sequelize(process.env.SUPABASE_URL, {
+// Aiven PostgreSQL database connection
+// Parse DATABASE_URL connection string
+const dbUrl = process.env.DATABASE_URL;
+const match = dbUrl.match(/postgres:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
+
+if (!match) {
+  throw new Error('Invalid DATABASE_URL format. Expected: postgres://user:password@host:port/database');
+}
+
+const [, username, password, host, port, database] = match;
+
+const sequelize = new Sequelize({
+  database: database,
+  username: username,
+  password: password,
+  host: host,
+  port: parseInt(port),
   dialect: "postgres",
   dialectOptions: {
     ssl: {

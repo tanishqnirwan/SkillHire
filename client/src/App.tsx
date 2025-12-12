@@ -5,6 +5,7 @@ import AuthRoute from '@/components/AuthRoute'
 import Layout from '@/components/Layout'
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
+import Landing from '@/pages/Landing'
 import FreelancerDashboard from '@/pages/freelancer/Dashboard'
 import CreateService from '@/pages/freelancer/CreateService'
 import EditService from '@/pages/freelancer/EditService'
@@ -24,11 +25,11 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/" element={<LandingOrRedirect />} />
 
             {/* Authenticated routes */}
             <Route element={<AuthRoute />}>
               {/* Default route - will redirect based on role */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardRedirect />} />
               
               {/* Freelancer routes */}
@@ -58,6 +59,21 @@ function App() {
   )
 }
 
+// LandingOrRedirect component - shows Landing if not authenticated, otherwise redirects to dashboard
+const LandingOrRedirect = () => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+  
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return <Landing />;
+}
+
 // DashboardRedirect component
 const DashboardRedirect = () => {
   const { user } = useAuth();
@@ -69,7 +85,7 @@ const DashboardRedirect = () => {
   }
   
   // Fallback in case something went wrong
-  return <Navigate to="/login" replace />;
+  return <Navigate to="/" replace />;
 }
 
 export default App

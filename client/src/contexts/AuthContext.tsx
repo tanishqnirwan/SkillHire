@@ -14,6 +14,7 @@ interface AuthContextType {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string, role: 'freelancer' | 'client') => Promise<void>
+  createDemoAccount: () => Promise<void>
   logout: () => void
 }
 
@@ -89,6 +90,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const createDemoAccount = async () => {
+    try {
+      const response = await axios.post('/auth/demo')
+      const { token, user } = response.data
+      localStorage.setItem('token', token)
+      updateAxiosHeaders(token)
+      setUser(user)
+      toast.success('Demo account created successfully')
+    } catch (error) {
+      toast.error('Failed to create demo account')
+      throw error
+    }
+  }
+
   const logout = () => {
     localStorage.removeItem('token')
     updateAxiosHeaders(null)
@@ -97,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, createDemoAccount, logout }}>
       {children}
     </AuthContext.Provider>
   )

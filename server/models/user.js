@@ -12,6 +12,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.ENUM("freelancer", "client"),
         allowNull: false,
       },
+      isDemo: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
+      },
     });
   
     return User;
